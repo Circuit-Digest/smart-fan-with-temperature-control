@@ -13,7 +13,7 @@
 
 float t = 0.0;
 unsigned long previousMillis = 0;
-const long interval = 5000;
+const long interval = 3000;
 const char* ssid = "Fan Speed Controller";
 const char* password = "12345678";
 const int output_pin = 2;
@@ -57,7 +57,7 @@ void setup() {
   pinMode(1, OUTPUT);
   pinMode(3, OUTPUT);
   digitalWrite(1, HIGH);
-
+  dht.begin();
   Serial.begin(115200);
 
   EEPROM.begin(30);
@@ -79,7 +79,7 @@ void setup() {
   main_loop();
 
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(ssid, password); / Set access point
+  WiFi.softAP(ssid, password);
 
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
@@ -109,6 +109,7 @@ void setup() {
 
   server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send_P(200, "text/plain", String(t).c_str());
+
   });
 
 
@@ -146,7 +147,6 @@ void setup() {
     EEPROM.put(0, auto_manual_mode);
     Serial.println(auto_manual_mode);
     boolean ok1 = EEPROM.commit();
-    Serial.println((ok1) ? "First commit OK" : "Commit failed");
   });
 
   // Start server
@@ -154,6 +154,16 @@ void setup() {
 }
 
 void loop() {
+
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= interval) {
+    // save the last time you updated the DHT values
+    previousMillis = currentMillis;
+    // Read temperature as Celsius (the default)
+    // float temp_tmp = dht.readTemperature();
+    t = dht.readTemperature();
+  }
 
   main_loop();
 
@@ -187,25 +197,15 @@ void loop() {
     digitalWrite(1, LOW);
     delay(500);
     digitalWrite(1, HIGH);
-
     tmp_slider = sliderValue.toInt();
 
   }
-
 }
 
 void main_loop()
 {
-  unsigned long currentMillis = millis();
 
-  if (currentMillis - previousMillis >= interval) {
-    // save the last time you updated the DHT values
-    previousMillis = currentMillis;
-    // Read temperature as Celsius (the default)
-    float temp_tmp = dht.readTemperature();
 
-    t = dht.readTemperature();
-  }
   if (auto_manual_mode == 0) // thi is manual mode the value is 0
   {
     int val = map(sliderValue.toInt(), 0, 100, 255, 0);
